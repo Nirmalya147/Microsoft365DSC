@@ -10,13 +10,13 @@
         Modules/Microsoft365DSC/Classes/_Types<NN>.psm1  the complex types, bucketed
         Modules/Microsoft365DSC/Classes/Part<NN>.psm1    the [DscResource()] classes, bucketed
 
-    then wires both into Microsoft365DSC.psd1 and regenerates SchemaDefinition.json from class
+    Then wires both into Microsoft365DSC.psd1 and regenerates SchemaDefinition.json from class
     reflection.
 
     Why this shape?
 
       - PowerShell type creation is superlinear in the number of classes in ONE parse unit, and
-        each NestedModules entry is its own parse unit. On the real tree the import splits into
+        each NestedModules entry is its own parse unit. On the real tree, the import splits into
         type creation (about 5.5 ms per resource class plus 0.5 ms per method) and parsing of the
         method bodies (about 20% of the import on PowerShell 7, about 50% on Windows PowerShell).
         Any layout from 8 to 32 parts lands in the same noise band, measured 2026-09-02.
@@ -32,7 +32,7 @@
 
       - Because the parts are separate modules, no single scope can resolve every resource class
         with `$Name -as [System.Type]`. Each part therefore ends with
-        [M365DSCResourceBase]::Register([X]) and the factory resolves through that registry.
+        [M365DSCResourceBase]:: Register([X]) and the factory resolves through that registry.
 
       - The manifest's FunctionsToExport key MUST stay absent or '*'. When FunctionsToExport,
         CmdletsToExport and AliasesToExport are all explicit, Get-Module -ListAvailable returns
@@ -210,7 +210,7 @@ function Get-M365DSCClassDefinition
         Two error kinds are expected when a resource file is parsed on its own and must not be
         fatal, because they are artefacts of the split layout rather than defects in the source:
 
-          TypeNotFound                 - the file opens `class X : M365DSCResourceBase`, and the
+          TypeNotFound                 - the file opens `class X: M365DSCResourceBase`, and the
                                          base lives in _Shared.psm1, which this file does not pull
                                          in. The generated Part<NN>.psm1 does.
           DscResourceMissingTestMethod - Test() is inherited from M365DSCResourceBase, which the
@@ -312,7 +312,7 @@ function Get-NormalizedText
 .DESCRIPTION
     [System.ComponentModel.Description()] carries the documentation for every property. Nothing
     reads it at runtime - SchemaDefinition.json is generated from the sources, which keep it - but
-    it is 53% of _Shared.psm1 and every byte is parsed again by DscClassCache on each
+    it is 53% of _Shared.psm1, and every byte is parsed again by DscClassCache on each
     Get-DscResourceV2, and turned into a CustomAttributeBuilder on each import. So it is dropped
     here unless -KeepDescriptions was passed.
 #>
@@ -339,7 +339,7 @@ function Get-M365DSCEmittedText
     $attributes = @($Ast.FindAll(
             {
                 $args[0] -is [System.Management.Automation.Language.AttributeAst] -and
-                $args[0].TypeName.FullName -in $script:DescriptionAttributeNames
+                $args[0].TypeName.FullName -in $script: DescriptionAttributeNames
             },
             $true) | Sort-Object { $_.Extent.StartOffset } -Descending)
 
@@ -374,8 +374,8 @@ function Get-M365DSCEmittedText
 
 .DESCRIPTION
     DscClassCache cannot generate MOF for a derived complex type once the module is imported. With
-    the module absent it resolves the property type by name from the AST and treats it as an
-    embedded instance, which works; with the module imported it gets the real PowerShell class type
+    the module is absent, it resolves the property type by name from the AST and treats it as an
+    embedded instance, which works; with the module imported, it gets the real PowerShell class type
     and throws "The '<property>' property with type '<type>' of DSC resource class '<class>' is not
     supported". That breaks every in-process caller of ConvertTo-DSCObject, New-M365DSCDeltaReport
     among them, and compiling any configuration in a session that has the module loaded.
@@ -547,7 +547,7 @@ function Get-M365DSCComplexReference
 
 <#
 .SYNOPSIS
-    Returns name -> connected component id over the undirected reference graph.
+    Returns name -> connected component ID over the undirected reference graph.
 
 .DESCRIPTION
     DscClassCache resolves an embedded complex type only against the classes in the same parse
@@ -619,8 +619,8 @@ function Get-M365DSCConnectedComponent
 
 #region Collect
 
-Write-BuildLog "Repository : $RepositoryRoot"
-Write-BuildLog "Source     : $script:SourceRoot"
+Write-BuildLog "Repository: $RepositoryRoot"
+Write-BuildLog "Source   : $script: SourceRoot"
 
 foreach ($required in @('M365DSCResourceBase.psm1', 'M365DSCResourceFactory.psm1'))
 {
@@ -642,7 +642,7 @@ Write-BuildLog "Found $($sourceFiles.Count) resource source files"
 $resourceEntries = [System.Collections.Generic.List[Object]]::new()
 
 # Keyed case-insensitively on purpose. Complex types are declared once per resource that uses
-# them and the casing is not always consistent between those copies.
+# them, and the casing is not always consistent between those copies.
 $complexByName = [System.Collections.Generic.Dictionary[String, Object]]::new([StringComparer]::OrdinalIgnoreCase)
 $collisions = [System.Collections.Generic.List[String]]::new()
 $skipped = [System.Collections.Generic.List[String]]::new()
@@ -698,7 +698,7 @@ foreach ($file in $sourceFiles)
     }
 }
 
-if ($collisions.Count -gt 0)
+if ($collisions. Count -gt 0)
 {
     $message = "Complex type collisions must be resolved at the source:`n  " + ($collisions -join "`n  ")
     throw $message
@@ -710,7 +710,7 @@ Write-BuildLog "Still script-based    : $($skipped.Count)" -Level $(if ($skipped
 
 if ($resourceEntries.Count -eq 0)
 {
-    throw "No class-based resources found under $script:SourceRoot. Nothing to build."
+    throw "No class-based resources found under $script: SourceRoot. Nothing to build."
 }
 
 #endregion
@@ -723,13 +723,13 @@ if (-not $PSCmdlet.ShouldProcess($script:ClassRoot, 'Generate class modules'))
     return
 }
 
-if (Test-Path -Path $script:ClassRoot)
+if (Test-Path -Path $script: ClassRoot)
 {
     Get-ChildItem -Path $script:ClassRoot -Filter '*.psm1' | Remove-Item -Force
 }
 else
 {
-    $null = New-Item -Path $script:ClassRoot -ItemType Directory -Force
+    $null = New-Item -Path $script: ClassRoot -ItemType Directory -Force
 }
 
 $generatedFiles = [System.Collections.Generic.List[String]]::new()
@@ -747,7 +747,7 @@ $shared = [System.Text.StringBuilder]::new()
 $sharedPath = Join-Path -Path $script:ClassRoot -ChildPath '_Shared.psm1'
 Set-Content -Path $sharedPath -Value $shared.ToString() -Encoding UTF8
 $generatedFiles.Add('Classes/_Shared.psm1')
-Write-BuildLog "Wrote $($sharedPath.Substring($RepositoryRoot.Length + 1)) ($([math]::Round((Get-Item $sharedPath).Length / 1KB)) KB)" -Level Detail
+Write-BuildLog "Wrote $($sharedPath.Substring($RepositoryRoot.Length + 1)) ($([math]:: Round((Get-Item $sharedPath).Length / 1KB)) KB)" -Level Detail
 
 # --- _Types<NN>.psm1 --------------------------------------------------------------------------
 $complexTypeAst = [System.Collections.Generic.Dictionary[String, Object]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -1006,7 +1006,7 @@ function Update-M365DSCBuildManifest
     $content = [System.Text.RegularExpressions.Regex]::Replace($content, $pattern, '', 'Singleline')
 
     # 2. Insert the class modules at the end of the NestedModules array.
-    $nestedMatch = [System.Text.RegularExpressions.Regex]::Match(
+    $nestedMatch = [System.Text.RegularExpressions.Regex]:: Match(
         $content, '(?s)(NestedModules\s*=\s*@\()(.*?)(\r?\n\s*\))')
     if (-not $nestedMatch.Success)
     {
@@ -1033,7 +1033,7 @@ function Update-M365DSCBuildManifest
     $exportBlock += (($ResourceName | Sort-Object | ForEach-Object { "    '$_'" }) -join ",`r`n")
     $exportBlock += "`r`n  )"
 
-    $existing = [System.Text.RegularExpressions.Regex]::Match(
+    $existing = [System.Text.RegularExpressions.Regex]:: Match(
         $content, '(?s)^\s*DscResourcesToExport\s*=\s*@\(.*?\r?\n\s*\)', 'Multiline')
 
     if ($existing.Success)
@@ -1043,13 +1043,13 @@ function Update-M365DSCBuildManifest
     else
     {
         # Place it right after the NestedModules array.
-        $anchor = [System.Text.RegularExpressions.Regex]::Match(
+        $anchor = [System.Text.RegularExpressions.Regex]:: Match(
             $content, '(?s)NestedModules\s*=\s*@\(.*?\r?\n\s*\)')
         $insertAt = $anchor.Index + $anchor.Length
         $content = $content.Insert($insertAt, "`r`n`r`n  # DSC resources to export from this module.`r`n$exportBlock")
     }
 
-    # 4. FunctionsToExport is deliberately untouched. With every export key explicit the engine
+    # 4. FunctionsToExport is deliberately untouched. With every export key explicit, the engine
     #    skips the manifest analysis that records DscResourcesToExport, and Get-DscResource
     #    reports zero resources on both editions.
 
@@ -1059,7 +1059,7 @@ function Update-M365DSCBuildManifest
     }
 }
 
-Update-M365DSCBuildManifest -Path $script:ManifestPath `
+Update-M365DSCBuildManifest -Path $script: ManifestPath.`
     -ClassModule $generatedFiles.ToArray() `
     -ResourceName @($resourceEntries.Name)
 
@@ -1121,7 +1121,7 @@ if (`$null -eq `$parser)
     throw 'DSCParser is not installed; Get-DscResourceV2 is unavailable.'
 }
 
-`$entries = @(`$env:PSModulePath -split [System.IO.Path]::PathSeparator |
+`$entries = @(`$env: PSModulePath -split [System.IO.Path]:: PathSeparator |
     Where-Object { `$_ -and -not (Test-Path -Path (Join-Path -Path `$_ -ChildPath 'Microsoft365DSC')) })
 `$env:PSModulePath = (@('$stageRoot') + `$entries) -join [System.IO.Path]::PathSeparator
 
@@ -1140,7 +1140,7 @@ foreach (`$resource in `$found)
         $result = & pwsh -NoProfile -NonInteractive -Command $probe
 
         $foundNames = @($result |
-                Where-Object { $_ -is [System.String] -and $_.StartsWith('RESOURCE:') } |
+                Where-Object { $_ -is [System. String] -and $_.StartsWith('RESOURCE:') } |
                 ForEach-Object { $_.Substring('RESOURCE:'.Length).Trim() } |
                 Sort-Object -Unique)
         $count = $foundNames.Count
